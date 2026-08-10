@@ -14,10 +14,19 @@ while [ -L "$SCRIPT_PATH" ]; do
 done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 
-# Auto-install Node dependencies when running from a git clone
+# Auto-install Node dependencies when running from a git clone.
+# The repo declares packageManager: yarn@4 (Yarn Berry), so install with Yarn via
+# Corepack to honor yarn.lock; fall back to npm only if Corepack/Yarn is unavailable.
 if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
     echo "[ECC] Installing dependencies..."
-    (cd "$SCRIPT_DIR" && npm install --no-audit --no-fund --loglevel=error)
+    if command -v corepack &>/dev/null; then
+        (cd "$SCRIPT_DIR" && corepack yarn install --immutable)
+    elif command -v yarn &>/dev/null; then
+        (cd "$SCRIPT_DIR" && yarn install --immutable)
+    else
+        echo "[ECC] Corepack/Yarn not found; falling back to npm."
+        (cd "$SCRIPT_DIR" && npm install --no-audit --no-fund --loglevel=error)
+    fi
 fi
 
 # On MSYS2/Git Bash, convert the POSIX path to a Windows path so Node.js

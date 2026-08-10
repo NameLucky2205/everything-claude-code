@@ -1,5 +1,13 @@
 # Repo & Fork Assessment + Setup Recommendations
 
+> **⚠️ Superseded (kept for history).** This is a dated point-in-time note whose figures
+> (v1.9.0 counts, "fully synced with upstream", "0 agents installed") no longer describe the
+> repo — and this is a standalone project, not a fork. For the current, evidence-based
+> assessment and the improvement roadmap, see
+> [assessments/IMPROVEMENT-PLAN.md](assessments/IMPROVEMENT-PLAN.md). Canonical surface is
+> ~60 agents / 229 skills / 75 commands / ~99 rules; the browsable index is
+> [CATALOG.md](CATALOG.md).
+
 **Date:** 2026-03-21
 
 ---
