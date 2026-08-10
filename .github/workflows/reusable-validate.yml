@@ -53,3 +53,9 @@ jobs:
 
       - name: Validate no personal paths
         run: node scripts/ci/validate-no-personal-paths.js
+
+      - name: Check translation drift
+        run: node scripts/ci/validate-drift.js
+
+      - name: Check CATALOG.md is up to date
+        run: node scripts/ci/catalog-index.js --check
