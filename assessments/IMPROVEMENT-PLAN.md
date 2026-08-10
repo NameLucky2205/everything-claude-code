@@ -10,8 +10,8 @@
 
 | Фаза | Сделано | Отложено (с причиной) |
 |---|---|---|
-| 0 | шимы `tdd/e2e/orchestrate` → редиректы; `files[]` → glob `skills/` (49 неопубликованных закрыты); `code-reviewer` MUST BE USED → fallback; `CLAUDE.md`/`REPO-ASSESSMENT.md` — битые ссылки/устаревшие счётчики; ревьюеры read-only; ребаланс моделей | один lockfile — **откачено**: `package-lock.json` несущий для `npm ci` в 6+ CI-джобах и тестах, нужна координированная npm→yarn миграция; `rules/zh` — ссылается из install-тестов; `continuous-learning` v1 — вшит в hook `evaluate-session.js` |
-| 1 | `INSTALL.md` — единый канонический путь + дерево решений + «не стекать методы» | `configure-ecc` rewrite и привязка 49 сирот к модулям — манифест-хирургия, отдельный PR |
+| 0 | шимы `tdd/e2e/orchestrate` → редиректы; `code-reviewer` MUST BE USED → fallback; `CLAUDE.md`/`REPO-ASSESSMENT.md` — битые ссылки/устаревшие счётчики; ревьюеры read-only; ребаланс моделей | один lockfile — **откачено**: `package-lock.json` несущий для `npm ci` в 6+ CI-джобах и тестах, нужна координированная npm→yarn миграция; `rules/zh` — ссылается из install-тестов; `continuous-learning` v1 — вшит в hook `evaluate-session.js` |
+| 1 | `INSTALL.md` — единый канонический путь + дерево решений + «не стекать методы» | `configure-ecc` rewrite и привязка 49 сирот к модулям — манифест-хирургия. **Важно:** `files[]` **намеренно** выровнен по module-graph (тест `npm-publish-surface`), поэтому «49 неопубликованных» закрываются именно привязкой сирот к модулям, а не glob `skills/` — попытка glob откачена как ломающая этот инвариант |
 | 2 | `scripts/ci/validate-drift.js` + подключён в CI; **нашёл и убрал реальный дрейф** (2 osiротевших перевода `project-guidelines-example`) | полные генераторы зеркал/переводов из канона — большой отдельный этап |
 | 3 | проектный документ [PHASE-3-CONSOLIDATION.md](PHASE-3-CONSOLIDATION.md) | само слияние 19→6 ревьюеров и 10→1 резолверов — меняет авто-диспатч, нужен eval-паритет и compat-окно, по явному согласию |
 | 4 | `CATALOG.md` + генератор `scripts/ci/catalog-index.js` + CI-check | TS/Node-скилы (связаны со счётчиками в README/AGENTS/plugin.json); разбиение README |
