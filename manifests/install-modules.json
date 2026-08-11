@@ -161,6 +161,7 @@
         "skills/motion-ui",
         "skills/nestjs-patterns",
         "skills/nextjs-turbopack",
+        "skills/nodejs-patterns",
         "skills/nuxt4-patterns",
         "skills/perl-patterns",
         "skills/perl-testing",
@@ -176,6 +177,8 @@
         "skills/springboot-tdd",
         "skills/springboot-verification",
         "skills/tinystruct-patterns",
+        "skills/typescript-patterns",
+        "skills/typescript-testing",
         "skills/ui-to-vue",
         "skills/vite-patterns"
       ],
