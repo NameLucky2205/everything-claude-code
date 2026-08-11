@@ -11,10 +11,10 @@
 | Фаза | Сделано | Отложено (с причиной) |
 |---|---|---|
 | 0 | шимы `tdd/e2e/orchestrate` → редиректы; `code-reviewer` MUST BE USED → fallback; `CLAUDE.md`/`REPO-ASSESSMENT.md` — битые ссылки/устаревшие счётчики; ревьюеры read-only; ребаланс моделей | один lockfile — **откачено**: `package-lock.json` несущий для `npm ci` в 6+ CI-джобах и тестах, нужна координированная npm→yarn миграция; `rules/zh` — ссылается из install-тестов; `continuous-learning` v1 — вшит в hook `evaluate-session.js` |
-| 1 | `INSTALL.md` — единый канонический путь + дерево решений + «не стекать методы» | `configure-ecc` rewrite и привязка 49 сирот к модулям — манифест-хирургия. **Важно:** `files[]` **намеренно** выровнен по module-graph (тест `npm-publish-surface`), поэтому «49 неопубликованных» закрываются именно привязкой сирот к модулям, а не glob `skills/` — попытка glob откачена как ломающая этот инвариант |
+| 1 | `INSTALL.md` — единый канонический путь + дерево решений + «не стекать методы». **PR #2:** привязка **48 сирот-скилов** в module-graph (3 новых модуля healthcare/homelab/design-motion + раскладка по темам) и синхронизация `files[]` — «49 неопубликованных» закрыто через граф, а не glob (`npm-publish-surface` 2/2). `skill-comply` намеренно оставлен вне графа (CI-only, зафиксировано контрактом pack) | `configure-ecc` rewrite — отдельный PR |
 | 2 | `scripts/ci/validate-drift.js` + подключён в CI; **нашёл и убрал реальный дрейф** (2 osiротевших перевода `project-guidelines-example`) | полные генераторы зеркал/переводов из канона — большой отдельный этап |
 | 3 | проектный документ [PHASE-3-CONSOLIDATION.md](PHASE-3-CONSOLIDATION.md) | само слияние 19→6 ревьюеров и 10→1 резолверов — меняет авто-диспатч, нужен eval-паритет и compat-окно, по явному согласию |
-| 4 | `CATALOG.md` + генератор `scripts/ci/catalog-index.js` + CI-check | TS/Node-скилы (связаны со счётчиками в README/AGENTS/plugin.json); разбиение README |
+| 4 | `CATALOG.md` + генератор `scripts/ci/catalog-index.js` + CI-check. **PR #2:** 3 TS/Node-скила (`typescript-patterns`, `typescript-testing`, `nodejs-patterns`) — топ-стек больше не с нулём; счётчики 229→232 синхронизированы автоматически через `catalog:sync` | разбиение README (крупное) |
 | 5 | `LAYOUT.md` (классификация всех каталогов); `WORKING-CONTEXT.md` → `archive/` | вынос `src/llm`, `ecc2/`, `ecc_dashboard.py` — cross-repo |
 
 Принцип отбора: применено всё безопасное/аддитивное/проверяемое; отложено — то, что меняет
