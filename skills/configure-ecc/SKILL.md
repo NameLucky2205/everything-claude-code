@@ -15,6 +15,30 @@ An interactive, step-by-step installation wizard for the Everything Claude Code 
 - User wants to verify or fix an existing ECC installation
 - User wants to optimize installed skills or rules for their project
 
+## Recommended path: use the managed installer first
+
+For almost everyone, the managed installer is the canonical way to install — it is
+manifest-driven, dry-runnable, multi-target, and keeps a state store for clean updates and
+uninstalls. Prefer it over the manual copy wizard below:
+
+```bash
+# Preview, then apply — see INSTALL.md for the full profile/target matrix
+npx ecc install --profile developer --target claude --dry-run
+npx ecc install --profile developer --target claude
+```
+
+Profiles: `minimal · core · developer · security · research · full`. Targets: `claude`,
+`cursor`, `codex`, `gemini`, `opencode`, and more. Full guidance and the decision tree live in
+[INSTALL.md](../../INSTALL.md).
+
+> **Do not stack install methods.** If you installed via `/plugin install`, do **not** also run
+> the CLI or the manual wizard — that duplicates skills/commands/hooks. Run `npx ecc doctor` to
+> check what is already installed.
+
+**Use the manual wizard below only when** you cannot run `npx` (offline/locked-down machine) or
+you specifically want an interactive, file-by-file selective copy that the CLI profiles do not
+express. It performs the same result by hand; it is a fallback, not the default.
+
 ## Prerequisites
 
 This skill must be accessible to Claude Code before activation. Two ways to bootstrap:
