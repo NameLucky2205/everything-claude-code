@@ -1,0 +1,434 @@
+[
+  {
+    "title": "Tool-dir skill/agent copies are committed derived artifacts with no reproducible generator — duplication that drifts",
+    "priority": "high",
+    "issue": "Skills exist as canonical skills/ (229) PLUS adapted copies committed under .agents/skills (33 SKILL.md), .kiro/skills (18), .cursor/skills (10), .claude/skills (1). Diffing shows an inconsistent mix: some copies are byte-identical to canonical (.cursor bun-runtime, documentation-lookup, market-research), some diverge only in frontmatter schema (.kiro nests origin under metadata, body identical), and some diverge in body/length (.cursor article-writing 85 lines vs canonical 79). No in-repo script regenerates these copies — grep across scripts/ finds only build-opencode.js (a TS compile) and sync-ecc-to-codex.sh (writes .cursor/rules and the user's ~/.codex at install time, not these skill dirs). harness-adapter-compliance.js only validates a metadata scorecard, not content parity. So the copies are hand-maintained/one-shot-generated and will silently drift from canonical.",
+    "evidence": "diff skills/api-design/SKILL.md .kiro/skills/api-design/SKILL.md (frontmatter-only); DIFFERS/IDENTICAL mix across .cursor/skills and .kiro/skills; grep -rlE '(kiro|cursor|agents)/skills' scripts/ returns only sync-ecc-to-codex.sh (rules, not skills); only scripts/build-opencode.js among build-* scripts",
+    "recommendation": "Treat canonical skills/ + adapter transforms as the only source and either (a) generate the tool-dir copies via committed build-<harness>.js scripts run in CI with a parity check, or (b) adapt at install time in install-apply.js and stop committing them. If they must stay committed, add a CI job that regenerates and diffs them so drift fails the build.",
+    "effort": "large",
+    "dimension": "structure"
+  },
+  {
+    "title": "npm publish surface (package.json files[]) hand-lists 180 of 229 skills — 49 silently unpublished",
+    "priority": "high",
+    "issue": "The package.json files[] array manually enumerates each shipped skill directory. It lists 180 skill paths while skills/ contains 229 subdirectories, so 49 skills are never published to npm, and every new skill requires a manual edit or it ships missing. This is exactly the drift the manifest/catalog tooling is meant to prevent, bypassed by a hand-maintained allowlist.",
+    "evidence": "grep count of skills/ entries in package.json = 180; find skills -maxdepth 1 -mindepth 1 -type d = 229; package.json lines 94-273",
+    "recommendation": "Replace the enumerated skill list with a directory glob (skills/) plus .npmignore exclusions, or generate the files[] array from manifests/install-modules.json / catalog.js as a CI-checked step so the published set always matches canonical.",
+    "effort": "quick-win",
+    "dimension": "structure"
+  },
+  {
+    "title": "docs/ carries 282 translated SKILL.md copies that drift from canonical and inflate the count to 573 skills",
+    "priority": "high",
+    "issue": "docs/ (7.2M) contains full localized skill trees: docs/zh-CN (181 SKILL.md), docs/tr (38), docs/ja-JP (32), docs/zh-TW (16), docs/ko-KR (15), plus pt-BR/ru/vi-VN. These 282 copies are the reason a repo-wide find reports 573 skills vs the real 229. No generation/sync pipeline for them is visible, so translations will drift from canonical English skills as the latter evolve, and they bloat every clone and the skill-count surface.",
+    "evidence": "find . -name SKILL.md = 573 total: skills/ 229, docs 282, .agents 33, .kiro 18, .cursor 10, .claude 1; docs subdir breakdown docs/zh-CN 181, docs/tr 38, docs/ja-JP 32, docs/zh-TW 16, docs/ko-KR 15; du -sh docs/ = 7.2M",
+    "recommendation": "Move localized skill copies out of the counted content surface (e.g. a separate i18n/ tree or translations repo), generate them from canonical with a tracked pipeline, or prune stale locales. At minimum document that docs/ locale trees are derived so tooling and readers do not treat them as 573 distinct skills.",
+    "effort": "medium",
+    "dimension": "structure"
+  },
+  {
+    "title": "Repo root overloads three unrelated language subprojects plus a dashboard onto the plugin",
+    "priority": "medium",
+    "issue": "The root simultaneously hosts: the Node ecc-universal plugin/installer (package.json, scripts/, tests/) which is the product; an unrelated Python package src/llm named llm-abstraction v0.1.0 with placeholder author email affaan@example.com and no reference from the plugin; a Rust ECC 2.0 Alpha control-plane in ecc2/ (Cargo.toml/Cargo.lock); and a 40KB ecc_dashboard.py sitting loose at root. Three toolchains (package.json, pyproject.toml, ecc2/Cargo.toml) and two product identities (v2.0.0-rc.1 plugin vs ECC 2.0 Alpha rewrite) share one root, raising cognitive load and making the repo's purpose ambiguous.",
+    "evidence": "pyproject.toml name=llm-abstraction, packages=[src/llm], author email affaan@example.com; ecc2/README.md 'ECC 2.0 Alpha ... Rust-based ECC 2.0 control-plane scaffold'; ecc_dashboard.py 40801 bytes at root; VERSION/package.json = 2.0.0-rc.1",
+    "recommendation": "Split into a workspace (packages/ monorepo) or separate repos: keep the Claude Code config plugin at root, move src/llm and ecc2/ under clearly labeled subprojects or their own repos, and relocate ecc_dashboard.py under scripts/ or a dashboard/ dir. Fix the placeholder author email if src/ stays.",
+    "effort": "large",
+    "dimension": "structure"
+  },
+  {
+    "title": "Two package-manager lockfiles plus an npm/yarn mismatch between install.sh and the declared toolchain",
+    "priority": "medium",
+    "issue": "Both package-lock.json (104KB, npm) and yarn.lock (82KB, yarn) are committed, while package.json declares packageManager yarn@4.9.2 and ships .yarnrc.yml. install.sh, however, runs npm install --no-audit --no-fund when node_modules is missing. Two lockfiles for two managers drift independently, and the installer uses the manager the repo does not declare, so a clone can resolve different dependency trees depending on entry point.",
+    "evidence": "ls *.lock* = package-lock.json + yarn.lock; package.json packageManager yarn@4.9.2; install.sh line 20 npm install --no-audit --no-fund",
+    "recommendation": "Pick one manager (yarn, per packageManager), delete package-lock.json, and update install.sh to use the same manager (or corepack) so the lockfile and installer agree.",
+    "effort": "quick-win",
+    "dimension": "structure"
+  },
+  {
+    "title": "docs/ is used as a committed scratchpad of dated session artifacts",
+    "priority": "medium",
+    "issue": "Alongside real reference docs, docs/ contains one-off working files: MEGA-PLAN-REPO-PROMPTS-2026-03-12.md, PHASE1-ISSUE-BUNDLE-2026-03-12.md, PR-399-REVIEW-2026-03-12.md, PR-QUEUE-TRIAGE-2026-03-13.md, stale-pr-salvage-ledger.md, legacy-artifact-inventory.md. These are transient project-management/PR-triage outputs committed into the docs tree, adding navigation noise and making it hard to tell durable documentation from disposable notes.",
+    "evidence": "ls docs/ shows MEGA-PLAN-REPO-PROMPTS-2026-03-12.md, PHASE1-ISSUE-BUNDLE-2026-03-12.md, PR-399-REVIEW-2026-03-12.md, PR-QUEUE-TRIAGE-2026-03-13.md, stale-pr-salvage-ledger.md, legacy-artifact-inventory.md",
+    "recommendation": "Move dated session/PR artifacts to an archive/ or out of the repo, and reserve docs/ for durable, discoverable documentation. Add a docs/ index or README so the remaining top-level docs files are navigable.",
+    "effort": "quick-win",
+    "dimension": "structure"
+  },
+  {
+    "title": "Dot-directory taxonomy is semantically overloaded: .claude is runtime config, not a harness mirror like .codex/.cursor",
+    "priority": "medium",
+    "issue": "The eight dot-dirs look like one class (per-harness adapters) but are not. .codex/.cursor/.kiro/.opencode/.gemini/.qwen/.trae hold harness-specific adapted content, while .claude/ holds project/runtime config with no analog in the others: identity.json, ecc-tools.json, package-manager.json, and enterprise/, homunculus/, team/, research/ subtrees. No top-level document explains which dot-dirs are generated adapters, which are runtime state, and which are install targets, so the layout is hard to reason about; there is no ARCHITECTURE/LAYOUT map at root among the 20 loose .md files to disambiguate.",
+    "evidence": "ls .claude/ = identity.json, ecc-tools.json, package-manager.json, enterprise/, homunculus/, team/, research/, skills/, commands/, rules/; contrast ls .codex (AGENTS.md, agents, config.toml) and ls .gemini (GEMINI.md only); manifests/install-modules.json references claude as an install target 21x",
+    "recommendation": "Add a top-level ARCHITECTURE/LAYOUT.md classifying every root dir (canonical source, generated adapter, runtime config, subproject, build tooling), and consider separating .claude runtime config from harness-mirror dot-dirs (e.g. group adapters under a single adapters/ or harnesses/ parent).",
+    "effort": "medium",
+    "dimension": "structure"
+  },
+  {
+    "title": "Stale/contradictory meta-doc and broken skill references in CLAUDE.md",
+    "priority": "low",
+    "issue": "REPO-ASSESSMENT.md (dated 2026-03-21) still describes v1.9.0 with 28 agents / 116 skills / 59 commands, contradicting the current 2.0.0-rc.1 surface of 60/229/75 that README.md and AGENTS.md correctly report — a committed doc that will actively mislead. Separately, CLAUDE.md's Skills table maps README.md to a /readme skill and .github workflows to a /ci-workflow skill, but neither skill exists in skills/. Twenty loose .md files at the root (including three long-form guides and several *-GUIDE/CONTEXT docs) compound the navigation load.",
+    "evidence": "REPO-ASSESSMENT.md lines 15-33 Version 1.9.0 ... Agents 28, Skills 116, Commands 59; README.md line 396 60 agents, 229 skills, 75 legacy command shims; CLAUDE.md lines 76-80 reference /readme and /ci-workflow; ls skills/ grep readme|ci-workflow returns nothing; ls *.md = 20 files",
+    "recommendation": "Delete or regenerate REPO-ASSESSMENT.md to current numbers, remove the non-existent /readme and /ci-workflow skill mappings from CLAUDE.md (or create the skills), and consolidate the loose root .md guides under docs/ with a root README index linking them.",
+    "effort": "quick-win",
+    "dimension": "structure"
+  },
+  {
+    "title": "61% of the \"207 agents\" are translation duplicates that already drift out of sync",
+    "priority": "high",
+    "issue": "Only 60 of the 207 agent .md files are real, installable Claude Code agents (in ./agents/). 126 are documentation translations under docs/*/agents/ that copy the canonical name/tools/model frontmatter verbatim with only the description translated, and 16 more are a parallel .kiro re-authoring. The translations are already inconsistent: zh-CN mirrors 47 of 60 canonical agents, tr 28, ja-JP 13, ko-KR/pt-BR/zh-TW only 12 each. Every canonical agent edit must be hand-propagated to up to 6 language mirrors, and the uneven coverage proves that propagation is not happening. The duplicated frontmatter also carries live tools:/model: values, so any tooling that globs docs/**/agents/*.md would hit 7 files all declaring name: code-reviewer.",
+    "evidence": "find docs -path '*/agents/*.md' = 126 files; ls .kiro/agents/*.md = 16; ./agents = 60; comm shows docs/zh-CN/agents shares 47 identical basenames with ./agents; docs/zh-CN/agents/code-reviewer.md carries identical `tools: [\"Read\",\"Grep\",\"Glob\",\"Bash\"]` + `model: sonnet` frontmatter, only description translated",
+    "recommendation": "Treat ./agents/ as the single source of truth. Do not store translated agent definitions with live frontmatter; either move translated bodies into a docs-only format that strips tools:/model:/name: (so they can never collide or drift), or generate translations from canonical via a build step. Delete the .kiro parallel copies or generate them from canonical too.",
+    "effort": "medium",
+    "dimension": "agents"
+  },
+  {
+    "title": "Competing \"MUST BE USED\" hard triggers across 19 reviewers make auto-dispatch non-deterministic",
+    "priority": "high",
+    "issue": "32% of canonical agents (19 of 60) are reviewers, and 11 declare \"MUST BE USED\" with no precedence. code-reviewer says \"MUST BE USED for all code changes\" while python-reviewer says \"MUST BE USED for Python projects\" and django-reviewer says \"MUST BE USED for Django projects.\" On a single edit in a Django REST project, code-reviewer, python-reviewer, django-reviewer, fastapi-reviewer, and security-reviewer all assert mandatory invocation simultaneously. The selector has no declared tie-break, so which one fires is effectively arbitrary, and the Python stack (python/django/fastapi) is a three-way overlap on the same files.",
+    "evidence": "grep -l 'MUST BE USED' agents/*.md = 11; 19 *-reviewer agents; descriptions: code-reviewer \"MUST BE USED for all code changes\", python-reviewer \"MUST BE USED for Python projects\", django-reviewer \"MUST BE USED for Django projects\", fastapi-reviewer overlaps python without a MUST clause",
+    "recommendation": "Establish one generic code-reviewer as the default and make language reviewers opt-in specializations (drop the blanket \"MUST BE USED\"), or have the generic reviewer delegate to a language reviewer. Scope django/fastapi reviewers as sub-lenses of python-reviewer rather than independent mandatory agents, and state precedence explicitly in descriptions.",
+    "effort": "medium",
+    "dimension": "agents"
+  },
+  {
+    "title": "security-reviewer and database-reviewer are the only reviewers granted Write/Edit (least-privilege violation)",
+    "priority": "high",
+    "issue": "Of 19 reviewer agents, 17 are correctly read-only (Read/Grep/Glob/Bash). The two exceptions, security-reviewer and database-reviewer, are granted the full Read/Write/Edit/Bash/Grep/Glob set. A reviewer that can silently modify files breaks the review contract (report, don't mutate), and a security reviewer with write access is the highest-risk place to grant it. This is the clearest tool over-scoping in the canonical set, and it is inconsistent with every other reviewer.",
+    "evidence": "agents/security-reviewer.md and agents/database-reviewer.md: `tools: [\"Read\", \"Write\", \"Edit\", \"Bash\", \"Grep\", \"Glob\"]`; all 17 other *-reviewer agents use read-only lists like `[\"Read\",\"Grep\",\"Glob\",\"Bash\"]`",
+    "recommendation": "Drop Write and Edit from security-reviewer and database-reviewer so they match the read-only reviewer contract. If a remediation-applying variant is genuinely wanted, split it into a separate, clearly named agent rather than overloading the reviewer.",
+    "effort": "quick-win",
+    "dimension": "agents"
+  },
+  {
+    "title": "Reviewer + build-resolver fan-out is 50% of all agents, with overlapping scopes and a mislabeled generic resolver",
+    "priority": "medium",
+    "issue": "30 of 60 canonical agents (50%) are per-language reviewers (19) or build resolvers (11), a heavy language fan-out that multiplies maintenance and selection ambiguity. build-error-resolver is named and positioned as the generic build fixer but its own description says \"Build and TypeScript error resolution specialist\" — it is really the TS/JS resolver wearing a generic name, so it overlaps every language *-build-resolver and there is no true generic fallback. flutter-reviewer also silently owns Dart review (no dart-reviewer), while a dart-build-resolver exists — the split is inconsistent.",
+    "evidence": "19 *-reviewer + 11 *-resolver agents = 30/60; agents/build-error-resolver.md description: \"Build and TypeScript error resolution specialist\"; dart has a build-resolver but Dart review lives inside flutter-reviewer",
+    "recommendation": "Rename build-error-resolver to typescript-build-resolver (or genuinely make it the language-agnostic fallback and move TS specifics out). Document that reviewers/resolvers are a deliberate language matrix and gate their loading by detected project language so the full 30 are never all in the selection pool at once.",
+    "effort": "medium",
+    "dimension": "agents"
+  },
+  {
+    "title": "architect vs code-architect vs planner overlap on feature planning with no clear boundary",
+    "priority": "medium",
+    "issue": "Five *-architect agents plus planner create a fuzzy planning cluster. architect (opus) is \"system design, scalability, technical decision-making... PROACTIVELY when planning new features,\" code-architect (sonnet) \"designs feature architectures... implementation blueprints,\" and planner (opus) activates \"PROACTIVELY when users request feature implementation, architectural changes.\" All three claim the \"plan a feature\" trigger, so the auto-selector cannot cleanly disambiguate them from the descriptions alone.",
+    "evidence": "agents/architect.md, agents/code-architect.md, agents/planner.md descriptions all cite feature planning / architectural changes; architect and planner both opus, code-architect sonnet",
+    "recommendation": "Draw explicit non-overlapping boundaries in the descriptions: e.g. planner = task breakdown/sequencing, architect = system-level tradeoffs, code-architect = concrete per-feature file/interface blueprint — and cross-reference so each says when to prefer the others. Consider merging architect and code-architect if the distinction is not real.",
+    "effort": "medium",
+    "dimension": "agents"
+  },
+  {
+    "title": "Model assignment skews to sonnet; lightweight lookup/analyzer agents over-provisioned, GAN trio all on opus",
+    "priority": "medium",
+    "issue": "Model split is 52 sonnet / 7 opus / 1 haiku. Per the project's own performance guidance, lightweight, frequently-invoked agents should run on Haiku, but only doc-updater does. Read-only lookup/analyzer agents (docs-lookup, code-explorer, comment-analyzer, conversation-analyzer, type-design-analyzer, network-config-reviewer) all run sonnet. Separately, the three gan-* agents all run opus, so a single GAN loop spins up three opus agents.",
+    "evidence": "grep '^model:' agents/*.md: 52 sonnet, 7 opus, 1 haiku; opus set = architect, chief-of-staff, healthcare-reviewer, planner, gan-evaluator, gan-generator, gan-planner; only doc-updater is haiku",
+    "recommendation": "Move narrow read-only lookup/analysis agents to haiku (docs-lookup, code-explorer, comment-analyzer, conversation-analyzer, type-design-analyzer). Reassess whether gan-generator/gan-evaluator need opus or can run sonnet to cut loop cost.",
+    "effort": "quick-win",
+    "dimension": "agents"
+  },
+  {
+    "title": "Frontmatter style inconsistencies signal multiple copy-paste templates",
+    "priority": "low",
+    "issue": "Canonical frontmatter is otherwise complete (all 60 have name/description/tools/model), but authoring is inconsistent. 8 agents declare tools as an unquoted YAML flow sequence [Read, Grep, Glob] while 52 use the quoted JSON style [\"Read\", ...]. The three gan-* agents wrap their entire description value in literal double quotes (\"GAN Harness — ...\"), a YAML artifact none of the other 57 have. Resolver agents use three different suffixes for one role: -build-resolver (9), -app-resolver (harmonyos), and -error-resolver (build-error-resolver).",
+    "evidence": "unquoted-tools agents: code-architect, code-explorer, code-simplifier, comment-analyzer, conversation-analyzer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer; gan-*.md descriptions are quote-wrapped; suffixes -build-resolver / -app-resolver / -error-resolver",
+    "recommendation": "Normalize tools: to one style (quoted array), strip the wrapping quotes from the three gan-* descriptions, and standardize the resolver suffix (rename harmonyos-app-resolver and build-error-resolver to -build-resolver). A tiny lint/CI check on agent frontmatter would keep this from recurring.",
+    "effort": "quick-win",
+    "dimension": "agents"
+  },
+  {
+    "title": "probe",
+    "priority": "low",
+    "issue": "probe",
+    "evidence": "probe",
+    "recommendation": "probe",
+    "effort": "medium",
+    "dimension": "skills"
+  },
+  {
+    "title": "User's global install loads two divergent, always-on copies of every common rule (Gen1 common/ vs Gen2 ecc/common/)",
+    "priority": "high",
+    "issue": "~/.claude/rules/ contains BOTH an older top-level common/ tree (Gen1) and a nested ecc/common/ tree (Gen2 superset). Both are injected into every session (visible in this session's own context dump as 'user's private global instructions'). The model therefore receives two conflicting 'Coding Style', 'Testing', 'Security', and 'Git Workflow' rule blocks that disagree in content.",
+    "evidence": "~/.claude/rules/common/coding-style.md = 48 lines, missing the 'Core Principles (KISS/DRY/YAGNI)', 'Naming Conventions', and 'Code Smells to Avoid' sections. ~/.claude/rules/ecc/common/coding-style.md = 90 lines and contains all of them (superset). The two READMEs list different language sets (top-level: typescript/python/golang/swift/php; ecc: adds angular/web/ruby/arkts). Gen1 common has 9 files and NO code-review.md; Gen2 ecc/common adds code-review.md. Both trees are always-injected.",
+    "recommendation": "Pick the Gen2 ecc/ tree as the single source and delete the stale top-level ~/.claude/rules/common/ (and its Gen1 README/language dirs). One common ruleset per install; never two generations side by side.",
+    "effort": "quick-win",
+    "dimension": "rules"
+  },
+  {
+    "title": "Entire Chinese translation set (ecc/zh) is injected into every session for a non-CJK user",
+    "priority": "high",
+    "issue": "~/.claude/rules/ecc/zh/* (Chinese translation of the common rules) is installed into the active rules dir and loaded into context every session, despite the user working in Russian/English. This is pure, measurable token bloat with zero benefit — the Chinese rule text is literally present in this session's system context right now.",
+    "evidence": "rules/zh/ = 11 files / 572 lines; the user's install mirrors it under ecc/zh/ (agents.md, code-review.md, coding-style.md, development-workflow.md, git-workflow.md, hooks.md, patterns.md, performance.md, security.md, testing.md, README.md), all visible in the injected claudeMd context.",
+    "recommendation": "Never install translation sets (zh/ or any docs/<locale>) into an active rules directory. Keep translations as documentation only; install only the English core the user actually reads.",
+    "effort": "quick-win",
+    "dimension": "rules"
+  },
+  {
+    "title": ".cursor/rules/ is a stale, partial mirror of canonical rules/ — Cursor users get older rules than Claude users",
+    "priority": "high",
+    "issue": "The .cursor mirror was a point-in-time copy that has since drifted from rules/. Several files are materially behind the canonical version, one rule is missing entirely, and only 7 of 17 rule domains are mirrored at all — so an IDE consuming .cursor gets an inconsistent, outdated subset.",
+    "evidence": "diff (frontmatter-stripped) vs canonical: common-coding-style 48 vs 90 lines (42 differing — missing KISS/DRY/YAGNI, Naming, Code Smells); common-testing 29 vs 57 (28 differing — missing AAA pattern + test naming); common-development-workflow 29 vs 44 (21 differing — missing pre-review checks). hooks/patterns/performance/security are byte-identical (0 diff), proving a copy that partially drifted. common-code-review.md is ABSENT from .cursor. .cursor covers only common/golang/kotlin/php/python/swift/typescript; the other 11 domains (angular, arkts, cpp, csharp, dart, fsharp, java, perl, ruby, rust, web) have no Cursor mirror. .cursor also uses a different frontmatter dialect (alwaysApply/description) vs canonical (paths:), a second drift vector.",
+    "recommendation": "Generate .cursor/rules/ from rules/ at build time with a script (flatten names + inject Cursor frontmatter), and delete the hand-maintained copies. A mirror must be generated, never hand-edited, or it drifts.",
+    "effort": "medium",
+    "dimension": "rules"
+  },
+  {
+    "title": "Chinese rules are translated twice in two locations and the two translations disagree",
+    "priority": "medium",
+    "issue": "Chinese exists both as rules/zh/ (embedded inside the canonical ruleset) and docs/zh-CN/rules/common/ (the proper translation location). They are independent, divergent translations of the same English source — so there is no single correct Chinese version.",
+    "evidence": "rules/zh/ = 11 files; docs/zh-CN/rules/common/ = 9 files. diff rules/zh/coding-style.md docs/zh-CN/rules/common/coding-style.md = 56 differing lines. rules/zh/ additionally carries README.md and code-review.md that docs/zh-CN/rules/common/ omits; docs/zh-CN conversely carries full language-dir translations (65 files total) that rules/zh/ lacks.",
+    "recommendation": "Delete rules/zh/ entirely. Translations belong only under docs/<locale>/. Keeping a translation inside the canonical rules/ tree guarantees drift and pollutes the governance surface.",
+    "effort": "quick-win",
+    "dimension": "rules"
+  },
+  {
+    "title": "Hand-maintained 6-language translation matrix (134 files / ~6,890 lines) with uneven coverage and no sync guarantee",
+    "priority": "medium",
+    "issue": "docs/{zh-CN,tr,ja-JP,ko-KR,pt-BR,zh-TW}/rules plus rules/zh add up to a large translation burden that will inevitably drift from the English source (already proven by the 56-line zh divergence). Coverage is wildly uneven, so no locale is a reliable substitute for English.",
+    "evidence": "Translation files: rules/zh(11) + docs/zh-CN(65, full mirror incl. cpp/csharp/java/kotlin/perl/rust that the English README doesn't even document) + docs/tr(25) + docs/ja-JP(9) + docs/ko-KR(8) + docs/pt-BR(8) + docs/zh-TW(8) = 134 files, ~6,890 lines. Four locales are common-only (8–9 files); two are fuller. This is 134 of 302 files (44%).",
+    "recommendation": "Treat translations as best-effort docs: add a per-file 'source of truth = English, last synced <sha>' banner, or drop the partial locales. Do not let them masquerade as complete parallel rulesets.",
+    "effort": "large",
+    "dimension": "rules"
+  },
+  {
+    "title": "rules/README.md is stale and its install instructions don't match the actual installer",
+    "priority": "medium",
+    "issue": "The README under rules/ documents fewer languages than exist and instructs an install command that the repo's install.sh does not implement — so following the documented steps does not install the rules.",
+    "evidence": "7 language dirs are present but undocumented in rules/README.md install examples: cpp, csharp, dart, fsharp, java, kotlin, perl (README lists only ~9; 16 language dirs + web actually exist). rules/README.md instructs `./install.sh typescript` etc., but the repo root install.sh is 32 lines and contains ZERO references to 'rules' (grep -c rules install.sh = 0). The rules/README appears vendored from a standalone upstream 'rules' repo whose installer differs from ECC's.",
+    "recommendation": "Regenerate the README language list from the directory listing, and either point users to the real installer (configure-ecc) or add rules handling to install.sh so the documented command works.",
+    "effort": "quick-win",
+    "dimension": "rules"
+  },
+  {
+    "title": "The '302' count is inflated by ~200 non-governance files; the real rule surface is ~99 files",
+    "priority": "low",
+    "issue": "Reasoning about '302 rules' overstates the governance surface. 28 of the 302 are skills/remotion-video-creation/rules/ — Remotion video-library how-to docs (a different domain, not coding-governance rules), and 2 are .claude project guardrails. Only ~99 files are unique English governance rules; the rest are translations or a stale mirror of those 99.",
+    "evidence": "Exact decomposition of 302: rules/ minus rules/zh = 99 unique English governance files (common 10 + web 7 + 16 language dirs 81 + README 1); translations = 134; .cursor stale mirror = 39; remotion skill docs = 28 (2,698 lines, off-domain); .claude guardrails = 2. 99+134+39+28+2 = 302. Unique governance = 99/302 (33%); translations+mirror = 173/302 (57%).",
+    "recommendation": "Scope any 'rules' analysis, install, or context-budget to rules/ (minus zh) — a ~99-file / ~7,600-line surface. Exclude docs/ translations, .cursor mirror, and skills/*/rules from the rule count to avoid double-counting.",
+    "effort": "quick-win",
+    "dimension": "rules"
+  },
+  {
+    "title": "Canonical language layering is coherent — confirm a few very thin files still carry real delta",
+    "priority": "low",
+    "issue": "Most language extension files carry substantive, path-scoped content, but a couple are near-pointer thin and worth a sanity check that they add value over common/ rather than being empty stubs.",
+    "evidence": "Line counts range 32 (golang/coding-style) to 215 (dart/testing); typescript/testing.md is 18 lines (a Playwright + e2e-runner pointer). All language files open with a '> This file extends common/…' backref (only python/fastapi.md legitimately omits it as a framework add-on) and use `paths:` frontmatter so they load only for matching files — a coherence positive. golang/coding-style.md and typescript/testing.md are thin but do add a real language-specific delta.",
+    "recommendation": "No structural change needed; the layering is sound. Optionally enrich the thinnest files (golang coding-style, typescript testing) or accept them as intentional minimal deltas.",
+    "effort": "quick-win",
+    "dimension": "rules"
+  },
+  {
+    "title": "Legacy shims not trimmed",
+    "priority": "high",
+    "issue": "Three of twelve legacy shims still ship the full old body.",
+    "evidence": "tdd.md 231 lines, e2e.md 268 lines, orchestrate.md 135 lines.",
+    "recommendation": "Truncate to the header.",
+    "effort": "quick-win",
+    "dimension": "commands-hooks"
+  },
+  {
+    "title": "Headline counts are ~3x inflated by harness mirrors and translations, which are drifting",
+    "priority": "high",
+    "issue": "The 207/573/319 figures conflate the canonical surface with copies. Canonical is 60 agents / 229 skills / 75 commands. The rest is 6-8 doc-translation trees (docs/ja-JP, zh-CN, zh-TW, ko-KR, tr, pt-BR = 887 md files, 5.6 MB) plus 5 alternate-harness mirror trees (.cursor, .agents, .kiro, .claude, .opencode). These are literal copies that already diverge from source, so every canonical edit must be manually propagated to N places or the mirrors rot.",
+    "evidence": "ls agents/*.md=60, find skills -maxdepth 2 -name SKILL.md=229, ls commands/*.md=75. SKILL.md by location: skills=229, .agents=33, .kiro=18, .cursor=10, .claude=1, docs=282. docs/zh-CN alone: 47 agents / 79 commands / 181 skills. diff .cursor/skills vs skills: article-writing/content-engine/frontend-slides/investor-outreach/mcp-server-patterns DIFFER; bun-runtime/documentation-lookup/market-research IDENTICAL.",
+    "recommendation": "Treat agents/, skills/, commands/ as the single source of truth and GENERATE harness mirrors and translations at build/CI time from it (never hand-edit copies). Add a CI check that fails if a mirror diverges from canonical. Report scale as canonical counts (60/229/75) so inflated numbers stop driving false 'too big' conclusions.",
+    "effort": "medium",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "19 per-language reviewer agents are one template with the language swapped",
+    "priority": "high",
+    "issue": "code-reviewer plus 18 language/domain reviewers (cpp, csharp, database, django, fastapi, flutter, fsharp, go, healthcare, java, kotlin, mle, network-config, python, rust, security, swift, typescript) are near-identical prompts: 'Expert <X> code reviewer specializing in <idioms>, security, and performance. Use for all <X> code changes. MUST BE USED for <X> projects.' 136 KB of agent text that is ~90% boilerplate. Largest near-duplicate cluster and the biggest selection-accuracy tax.",
+    "evidence": "ls agents/*reviewer*.md=19, total 136,634 bytes. Descriptions for python/go/rust-reviewer are structurally identical modulo language. Plus 9 review COMMANDS (code-review, cpp/fastapi/flutter/go/kotlin/python/rust-review, review-pr) wrap the same agents.",
+    "recommendation": "Collapse to ONE parameterized code-reviewer agent that detects the stack (or takes a language arg) and pulls language criteria from the already-existing rules/<lang>/ packs (rust 16.9KB, java 15.3KB, kotlin 12.9KB, etc.). Keep only genuinely different reviewers (security, healthcare, database). Removes ~15 agents and ~7 commands.",
+    "effort": "large",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "11 reviewer agents assert 'MUST BE USED' simultaneously, creating trigger contention",
+    "priority": "high",
+    "issue": "Aggressive auto-invoke directives on many near-identical agents force the model to choose among clones on every code change. When 11 agents all say MUST BE USED, the directive loses meaning and dispatch becomes noisy — the classic scale problem where more specialists reduce, not improve, selection precision.",
+    "evidence": "grep -l 'MUST BE USED' agents/*.md = 11 files, all reviewer-family; descriptions differ only by language token.",
+    "recommendation": "Remove blanket 'MUST BE USED' from language reviewers; let a single dispatcher (the parameterized reviewer, or the /code-review command) own invocation and route by detected language. Reserve mandatory-trigger language for a small number of orthogonal agents (security).",
+    "effort": "quick-win",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "Framework verification + TDD quadruplets duplicate the generic skills they wrap",
+    "priority": "high",
+    "issue": "django/laravel/springboot/quarkus each ship a *-verification and a *-tdd skill whose descriptions are ~90% identical to each other AND to generic verification-loop and tdd-workflow ('Verification loop for X projects: ... tests with coverage, security scans, ... before release or PR'). 8 framework skills restate 2 generic ones — exactly the near-duplicate content that makes the skill menu hard to select from.",
+    "evidence": "Verification descriptions for the 4 frameworks are boilerplate-identical bar framework name. Generics present: tdd-workflow, verification-loop, security-review, coding-standards, error-handling. verification-loop=126 lines vs springboot-verification=231 lines, only 28 shared literal lines — the framework file re-derives the same workflow rather than referencing it.",
+    "recommendation": "Keep generic verification-loop and tdd-workflow as entry skills; reduce each framework file to a thin 'framework delta' (JUnit/Testcontainers/pytest/PHPUnit specifics) that references the generic skill. Collapses ~8 skills of restated workflow into short deltas.",
+    "effort": "medium",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "10 build-resolver agents and 8 *-build commands are a swapped-language template",
+    "priority": "medium",
+    "issue": "build-error-resolver plus 9 per-language build-resolvers (cpp, dart, django, go, java, kotlin, pytorch, rust, swift) plus 8 *-build commands cover the same 'read build error, fix, re-run' loop parameterized by toolchain.",
+    "evidence": "ls agents/*build-resolver*.md + build-error-resolver = 10. Commands grep build: build-fix cpp-build flutter-build gan-build go-build gradle-build kotlin-build rust-build = 8.",
+    "recommendation": "Keep one build-error-resolver that detects the build tool from the failing command/output; fold per-language specifics into a lookup table or the rules packs. Same for *-build commands (one /build that dispatches).",
+    "effort": "medium",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "Per-language build/test/review command triads duplicate the agents beneath them",
+    "priority": "medium",
+    "issue": "cpp, flutter, go, kotlin, rust each get -build, -review, -test commands (15 commands) that are thin wrappers dispatching to the reviewer/build-resolver/testing agents. Triples the command surface per language and multiplies as languages are added.",
+    "evidence": "Commands: build={cpp,flutter,go,kotlin,rust,gradle,gan}-build; test={cpp,flutter,go,kotlin,rust}-test + test-coverage; review={cpp,fastapi,flutter,go,kotlin,python,rust}-review + code-review/review-pr. Per-language matrix: kotlin=10 surfaces, go=8, cpp/rust/django=7, swift=6, flutter=5.",
+    "recommendation": "Replace triads with 3 stack-aware generics (/build, /test, /review) that detect language via the existing config/project-stack-mappings.json. Removes ~15 commands; adding a language becomes a rules-pack change, not 3 commands + 2 agents.",
+    "effort": "medium",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "Always-on context is the metadata menu + rules, not the bodies — bounded but real",
+    "priority": "medium",
+    "issue": "Bodies load progressively (good), but the name+description metadata for everything installed is injected every session as the selection menu, and rules/ load FULLY always. Full install menu ~22.6K tokens; polyglot rules add tens of thousands more — spent before any work begins. Dominant harm is not tokens but that 229 descriptions, many near-duplicate, degrade selection.",
+    "evidence": "Frontmatter footprint: skills 63,732 B (~15.9K tok), agents 17,595 B (~4.4K tok), commands 9,307 B (~2.3K tok). rules/ = 110 md, 228,212 B; common=16 KB (~4K tok) always-on; per-language rules 2.9 KB (golang) to 23.3 KB (dart) each, loaded fully when that language is installed.",
+    "recommendation": "Default to the leaner install profiles (minimal/core/developer exclude security/research/media/domain modules) rather than full. Tighten and shorten skill descriptions to be discriminable in one line. Audit rules/ for the same generic-vs-language duplication (common/ overlaps language files) since rules are the always-loaded portion.",
+    "effort": "medium",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "Per-ecosystem pattern-skill sprawl (Kotlin 5, Django 5, Swift 4; 35 *-patterns total)",
+    "priority": "medium",
+    "issue": "35 skills end in -patterns, and several ecosystems fan out into overlapping pattern skills: kotlin (kotlin-patterns, kotlin-coroutines-flows, kotlin-exposed-patterns, kotlin-ktor-patterns, compose-multiplatform-patterns), django (patterns/celery/security/tdd/verification), swift (swiftui-patterns, swift-actor-persistence, swift-concurrency-6-2, swift-protocol-di-testing). Boundaries between backend-patterns / django-patterns / fastapi-patterns are fuzzy, so the model must disambiguate overlapping scopes.",
+    "evidence": "Skills ending -patterns = 35. Per-language matrix totals: kotlin=10 surfaces, django=7, swift=6, laravel=5, springboot/quarkus=4 each.",
+    "recommendation": "Per ecosystem, consolidate to one canonical <lang>-patterns skill with clearly-scoped sections, splitting out ONLY genuinely large sub-domains. Add explicit 'use this vs that' disambiguation lines so overlapping skills don't compete.",
+    "effort": "large",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "Deprecated skill still shipped alongside its replacement",
+    "priority": "low",
+    "issue": "continuous-learning is marked '[DEPRECATED - use continuous-learning-v2]' in its own description yet is still present in the skill set, so it consumes a menu slot and can still be mis-selected against v2.",
+    "evidence": "skills/continuous-learning/SKILL.md description begins '[DEPRECATED - use continuous-learning-v2] Legacy v1 stop-hook skill extractor'. continuous-learning-v2 present as a strict superset.",
+    "recommendation": "Remove continuous-learning from the shipped/installable set (leave a redirect note in docs). Sweep for other deprecated-but-shipped entries and adopt a policy: deprecated => not installed.",
+    "effort": "quick-win",
+    "dimension": "redundancy"
+  },
+  {
+    "title": "a",
+    "priority": "low",
+    "issue": "b",
+    "evidence": "c",
+    "recommendation": "d",
+    "effort": "quick-win",
+    "dimension": "security"
+  },
+  {
+    "title": "t",
+    "priority": "high",
+    "issue": "i",
+    "evidence": "e",
+    "recommendation": "r",
+    "effort": "quick-win",
+    "dimension": "tooling-ci"
+  },
+  {
+    "title": "configure-ecc wizard is badly stale and drives a divergent, discouraged install mechanism",
+    "priority": "critical",
+    "issue": "The interactive installer skill a new user is most likely to run hardcodes ~48 skills across 8 categories (vs 229 actual) and installs by cloning the upstream repo to /tmp and doing manual `cp -R` of skill directories. This directly contradicts the managed installer that README, ecc-guide, and /project-init all mandate — /project-init.md safety rule #3 literally says 'Do not hand-copy files or clone arbitrary remotes as an install shortcut.' A new user running the wizard sees under 25% of the catalog and installs via the one path maintainers tell everyone else to avoid.",
+    "evidence": "skills/configure-ecc/SKILL.md lines 26-35 (git clone to /tmp), 104-198 (hardcoded 8-category list ~48 skills), 200-218 (manual cp -R). Actual catalog = 229 skills (find skills -name SKILL.md). Contradicts commands/project-init.md rule 3 and scripts/install-plan.js/install-apply.js managed path.",
+    "recommendation": "Rewrite configure-ecc to (a) read the live catalog via scripts/ci/catalog.js instead of a hardcoded list, and (b) drive scripts/install-plan.js + install-apply.js (or hand off to /project-init) instead of manual cp; OR retire configure-ecc entirely and point 'configure ecc' triggers at /project-init + agent-sort. Never let two install engines coexist.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "Four inconsistent install stories across README, ecc-guide, configure-ecc, project-init, and REPO-ASSESSMENT",
+    "priority": "high",
+    "issue": "There is no single canonical install/onboarding path. README documents plugin marketplace + `npx ecc-install` + `./install.sh` + manual cp; ecc-guide uses `node scripts/install-plan.js`; configure-ecc uses clone+cp; REPO-ASSESSMENT.md tells users `npx ecc-universal install` and `node scripts/install-plan.js`. The npm package is `ecc-universal` but the bin is `ecc-install` (package.json line 2, 283), so `npx ecc-universal install` (a subcommand the install-apply.js bin does not document) is likely wrong. A newcomer cannot tell which to trust.",
+    "evidence": "README.md headings at lines 204-324 (Quick Start with plugin/npx/install.sh/manual), 811-918 (Installation, more paths); skills/ecc-guide/SKILL.md lines 104-118; skills/configure-ecc/SKILL.md lines 26-35; REPO-ASSESSMENT.md lines 160-164; package.json name=ecc-universal (l2) bin ecc-install (l283).",
+    "recommendation": "Pick ONE canonical path (recommend: plugin/managed installer to apply + /project-init and agent-sort to curate) and publish a single decision tree in one INSTALL.md. Demote every other path to an 'Alternatives' appendix. Fix the `npx ecc-universal install` vs `ecc-install` naming.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "49 skills are orphaned from the managed installer — no profile or module can install them",
+    "priority": "high",
+    "issue": "Only 180 of 229 skills are referenced by any module in install-modules.json, so 49 skills are reachable only via the `--skills <id>` flag or manual copy — even the 'full' profile silently omits them. The orphans include an ENTIRE domain (healthcare-cdss/emr/eval-harness/), most of the design/motion lane (design-system, accessibility, motion-foundations/patterns/advanced), and common picks like redis-patterns, vite-patterns, nuxt4-patterns, pytorch-patterns, hexagonal-architecture, architecture-decision-records, codebase-onboarding, git-workflow.",
+    "evidence": "manifests/install-modules.json references 180 distinct skill IDs; find skills lists 229; comm shows 49 unmapped (accessibility, design-system, motion-*, healthcare-*, redis-patterns, vite/nuxt/pytorch-patterns, codebase-onboarding, git-workflow, hexagonal-architecture, architecture-decision-records, etc.).",
+    "recommendation": "Add missing modules (e.g. healthcare, design-motion, frontend-web, homelab-complete) and wire orphans in; add a CI check in scripts/ci/validate-install-manifests.js that fails when any skills/*/SKILL.md maps to zero modules.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "TypeScript/JavaScript — the top web stack — has zero named skills despite rules, an agent, and being #1 in stack mappings",
+    "priority": "high",
+    "issue": "There is no typescript-patterns, typescript-testing, nodejs-patterns, or javascript skill, even though rules/typescript and rules/web exist, a typescript-reviewer agent exists, and typescript/javascript/react/nextjs are the first four stacks in project-stack-mappings.json. TS patterns are buried inside generic coding-standards/frontend-patterns/backend-patterns. Meanwhile the JVM ecosystem has 18 skills with TWO complete framework stacks (Spring Boot and Quarkus, each patterns/security/tdd/verification). The investment is inverted relative to real-world usage.",
+    "evidence": "grep of skills list: 0 for typescript|javascript|(ts-); nodejs only matches nodejs-keccak256. rules/typescript + rules/web exist; agents/typescript-reviewer.md exists. JVM skills = 18. project-stack-mappings.json lists typescript/javascript/react/nextjs first.",
+    "recommendation": "Add typescript-patterns, typescript-testing, and nodejs-patterns mirroring the existing python/go pattern+testing pairs; this is the highest-ROI coverage add in the repo.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "Internal/dated session artifacts pollute the user-facing doc surface",
+    "priority": "high",
+    "issue": "Repo root and docs/ carry ephemeral maintainer artifacts that read as authoritative user docs but are stale working notes: REPO-ASSESSMENT.md (dated 2026-03-21, cites wrong counts 116 skills/28 agents), EVALUATION.md, WORKING-CONTEXT.md (29KB). docs/ adds MEGA-PLAN-REPO-PROMPTS-2026-03-12, PHASE1-ISSUE-BUNDLE-2026-03-12, PR-399-REVIEW-2026-03-12, PR-QUEUE-TRIAGE-2026-03-13, stale-pr-salvage-ledger, legacy-artifact-inventory, ECC-2.0-SESSION-ADAPTER-DISCOVERY. A user browsing docs cannot tell live guidance from dead planning.",
+    "evidence": "Root: REPO-ASSESSMENT.md (l31-33 says 116 skills/28 agents — now 229/60), EVALUATION.md, WORKING-CONTEXT.md (29848 bytes). docs/ top-level dated files listed via find. docs/ is 893 files but ~780 are translations (zh-CN 412, tr 142, ja-JP 96...).",
+    "recommendation": "Move working artifacts to docs/internal/ (or delete) and keep the root to README/CONTRIBUTING/SECURITY/CHANGELOG/LICENSE. Delete or archive dated PR/PHASE/MEGA planning docs. Fix REPO-ASSESSMENT's stale counts or remove it.",
+    "effort": "quick-win",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "No browsable per-skill catalog for 229 skills — discoverability gap is the real 'size' problem",
+    "priority": "high",
+    "issue": "There is no generated index that lists every skill with its description and category. catalog.js only verifies counts against README/AGENTS/plugin.json (a CI guard), the README 'What's Inside' tree is hand-curated and partial (with '(NEW)' tags), and configure-ecc lists only ~48. So a user's only complete view of the catalog is `find skills -name SKILL.md`. This — not the raw file count — is what makes 229 feel unusable.",
+    "evidence": "scripts/ci/catalog.js verifies counts vs README_PATH/AGENTS_PATH/plugin.json (lines 19-26), no skills-index emitter. README.md 'What's Inside' (l484+) is a partial hand tree. No SKILLS.md/skill-index found.",
+    "recommendation": "Add a `catalog.js --write --skills-index` mode that regenerates a categorized CATALOG.md from SKILL.md frontmatter (name, description, origin, module) and enforce it in CI. This single doc makes the whole surface navigable and de-risks the size concern.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "Half-built language lanes: Ruby/Rails, ArkTS, and generic PHP have rules/agents but no matching skills",
+    "priority": "medium",
+    "issue": "rules/ruby exists and 'ruby' is a stack in project-stack-mappings.json, but there are zero Ruby/Rails skills and no ruby-reviewer or ruby-build-resolver agent. rules/arkts + a harmonyos-app-resolver agent exist but zero ArkTS skills. PHP has 5 Laravel skills but no generic php-patterns/php-testing and no php-reviewer/laravel-reviewer agent. These lanes look supported from the rules list but dead-end when a user actually asks for help.",
+    "evidence": "grep skills: ruby=0, arkts/harmony=0, php generic=0. rules/ dirs include ruby, arkts, php. agents/ has harmonyos-app-resolver but no ruby-* or php-* reviewer; laravel has skills but no laravel-reviewer.",
+    "recommendation": "Either complete the highest-value lane (Ruby/Rails: add rails-patterns, rails-testing, ruby-reviewer) or explicitly document these as 'rules-only' in the catalog so the rules list doesn't overpromise.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "Redundancy clusters in agent/LLM-meta (36 skills) and duplicated framework quartets",
+    "priority": "medium",
+    "issue": "The agent/LLM engineering category (36 skills, the largest) contains heavy overlap: autonomous-loops, continuous-agent-loop, autonomous-agent-harness, agentic-os, and enterprise-agent-ops all cover autonomous-loop territory; eval-harness, agent-eval, healthcare-eval-harness, and learn-eval overlap on evaluation. Separately, four framework stacks (django, laravel, springboot, quarkus) each ship the identical patterns/security/tdd/verification quartet — 16 near-structurally-identical skills. This inflates the count and the choice burden without proportional coverage.",
+    "evidence": "Category counts: agent/LLM-meta=36, ECC-tooling=20, JVM=18. Quartet skills present for django/laravel/springboot/quarkus. Multiple loop/eval skills enumerated in skills/ listing.",
+    "recommendation": "Run skill-stocktake to formally de-dupe the loop/eval cluster into a canonical skill + documented variants, and consider a shared framework-stack template so new frameworks reuse structure instead of cloning four files. Fewer, sharper skills improve both coverage clarity and onboarding.",
+    "effort": "large",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "README is a 1,732-line / 82KB monolith mixing install, 8 harness integrations, guides, FAQ, and a partial catalog",
+    "priority": "medium",
+    "issue": "The single README tries to be quick-start, full install reference (4+ paths), cross-harness setup (Cursor, Codex, Kiro, Trae, Qwen, Gemini, OpenCode, CodeBuddy, JoyCode), concept guide, FAQ, catalog, and contributing guide at once. A newcomer cannot find the one thing they need, and the drift risk is high (mitigated only partly by catalog.js count checks).",
+    "evidence": "README.md = 1732 lines / 82152 bytes; headings span Quick Start (204), What's Inside (484), Ecosystem Tools (703), Installation (811), Which Agent Should I Use (1012), FAQ (1063), Cursor (1207), Codex (1273) etc.",
+    "recommendation": "Split into a lean README (what/why + one quick-start + one canonical install) linking out to INSTALL.md, HARNESSES.md, CATALOG.md, GUIDES.md, FAQ.md. Keep the generated CATALOG.md as the single source for counts.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "'75 legacy command shims' terminology is inconsistent with the actual commands/ directory",
+    "priority": "medium",
+    "issue": "README (v2.0.0-rc.1 notes) brands the 75 files in commands/ as '75 legacy command shims,' but legacy-command-shims/commands/ is a separate directory with only 12 files, and commands/ entries like plan.md are full active command definitions, not thin shims. The commands-vs-skills migration ('skills are the primary surface, commands are compatibility') is real but under-explained, leaving users unsure whether to use /plan or the plan-orchestrate skill.",
+    "evidence": "commands/*.md = 75; legacy-command-shims/commands/*.md = 12; commands/plan.md is a full command (25+ lines of behavior). README.md line 127 calls them '75 legacy command shims'. Only ecc-guide and security-scan share a base name across commands/ and skills/.",
+    "recommendation": "Clarify in one place which commands are active vs retired, correct the '75 legacy shims' wording, and document the commands→skills migration and the intended precedence (skill-first) so users pick the right surface.",
+    "effort": "quick-win",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "Curation tooling exists and is good but is fragmented across too many entrypoints",
+    "priority": "medium",
+    "issue": "The answer to 'is there tooling to curate a per-project subset?' is yes and it is fairly mature — agent-sort (evidence-based DAILY vs LIBRARY, repo-aware grep), /project-init (dry-run plan from a 20-stack project-stack-mappings.json), install-plan.js --skills, skill-stocktake/skill-scout/skill-comply, and a skill-library router pattern. But these overlap and don't reference each other cleanly, and the best-designed one (agent-sort) hands off to the stalest one (configure-ecc). Users face a paradox of curation choices on top of the catalog-size problem.",
+    "evidence": "skills/agent-sort/SKILL.md (DAILY/LIBRARY model, handoffs to configure-ecc/skill-stocktake l182-194); commands/project-init.md (dry-run, config/project-stack-mappings.json, 20 stacks); manifests/install-*.json; skills skill-stocktake/skill-scout/skill-comply present.",
+    "recommendation": "Consolidate onto one documented flow: /project-init detects stack -> agent-sort classifies -> managed installer applies. Update agent-sort's handoff to target the managed installer, not configure-ecc. Document this as THE curation path so the good tooling is actually findable.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  },
+  {
+    "title": "Long-tail niche verticals are deeply built but both over-invested and under-discoverable",
+    "priority": "low",
+    "issue": "Networking/homelab (10 skills), supply-chain/logistics (8), healthcare (6), scientific (5), and crypto/web3 (5) are unusually deep for a general dev toolkit, while generic language coverage is thin. That is defensible as a long tail, but combined with the orphaned-modules and no-catalog findings, these skills simultaneously dilute the default install AND are hard for their actual audience to find.",
+    "evidence": "Domain counts from skills listing: networking/homelab=10, supply-chain=8, healthcare=6, scientific=5, crypto=5; several of these (healthcare-*, homelab-*) are in the 49 orphaned-from-modules set.",
+    "recommendation": "Keep the long tail, but gate each vertical behind a clearly named domain module and surface it in the generated CATALOG.md under a Verticals section, so niche depth is a feature for its audience instead of noise in the default developer install.",
+    "effort": "medium",
+    "dimension": "coverage-docs"
+  }
+]

@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. MUST BE USED for all code changes.
+description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. MUST BE USED for code changes when no language-specific reviewer (python-reviewer, go-reviewer, typescript-reviewer, rust-reviewer, java-reviewer, etc.) applies.
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---

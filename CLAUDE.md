@@ -71,11 +71,9 @@ File naming: lowercase with hyphens (e.g., `python-reviewer.md`, `tdd-workflow.m
 
 ## Skills
 
-Use the following skills when working on related files:
-
-| File(s) | Skill |
-|---------|-------|
-| `README.md` | `/readme` |
-| `.github/workflows/*.yml` | `/ci-workflow` |
+Skills live in `skills/<name>/SKILL.md` and are matched by their frontmatter `description`.
+Browse the full per-skill index in [CATALOG.md](CATALOG.md); pick the skill whose description
+fits the files you are working on (e.g. `python-patterns` for Python, `e2e-testing` for
+Playwright suites).
 
 When spawning subagents, always pass conventions from the respective skill into the agent's prompt.
